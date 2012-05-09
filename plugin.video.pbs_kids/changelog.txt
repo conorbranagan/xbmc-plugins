@@ -1,0 +1,10 @@
+Version 1.0.1
+12-Nov-2011
+    * Core
+        * Removed broken show, "Dot's Story Factory"
+        * Add correct titles to videos instead of 'file.mp4'
+
+Version 1.0.2
+25-Nov-2011
+    * Core
+        * Add new show - "Hooper"

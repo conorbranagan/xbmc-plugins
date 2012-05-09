@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<addons>
+<addon
+  id="plugin.video.pbs_kids"
+  version="1.0.2"
+  name="PBS Kids"
+  provider-name="squidiums">
+  <requires>
+    <import addon="xbmc.python"
+            version="1.0"/>
+    <import addon="script.module.simplejson"
+            version="2.0.10"/>
+  </requires>
+  <extension point="xbmc.python.pluginsource"
+             library="addon.py">
+    <provides>video</provides>
+  </extension>
+  <extension point="xbmc.addon.metadata">
+    <summary>PBS Kids Video add-on</summary>
+    <description>Watch clips and episodes from PBS Kids</description>
+    <platform>all</platform>
+  </extension>
+</addon>
+</addons>
