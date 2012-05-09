@@ -9,7 +9,7 @@ import xbmc, xbmcgui, xbmcplugin, xbmcaddon
 class PBSRedirectHandler(urllib2.HTTPRedirectHandler):
     def http_error_302(self, req, fp, code, msg, headers):
         raise Exception(headers['location'])
-    
+
     http_error_301 = http_error_303 = http_error_307 = http_error_302
 
 class PBSKids(object):
@@ -22,8 +22,8 @@ class PBSKids(object):
         ('Dinosaur Train', 'http://t1.gstatic.com/images?q=tbn:ANd9GcSSy-zPxW3kv492RzBHkyoDKnbj_m2t6AAI8QtTMNULe8i5XMzt'),
         ('Hooper', 'http://t3.gstatic.com/images?q=tbn:ANd9GcSBMEB-a-xkVxJPxB6YtJSf3B3gFj_tr0ws-Tm4hXpyLctwzUO6LA'),
         ('Lomax the Hound of Music', 'http://t0.gstatic.com/images?q=tbn:ANd9GcRWoED5Z9Ole3ZQuGlNrhFHzVyDb-B-lauATmnq95B2j56HiS3g'),
-        ('Mama Mirabelle\'s Home Movies', 'http://t3.gstatic.com/images?q=tbn:ANd9GcT4VIlhiiqnBbMWsIRuH8LVPddPqes99o6-sghPXtmHnIhwTJUCIQ'), 
-        ('Martha Speaks', 'http://t1.gstatic.com/images?q=tbn:ANd9GcSwrQm2lCbnV606Nbt7xXzBBr9HMBjOnfUbFhhzUFDcwS1or_KvlA'), 
+        ('Mama Mirabelle\'s Home Movies', 'http://t3.gstatic.com/images?q=tbn:ANd9GcT4VIlhiiqnBbMWsIRuH8LVPddPqes99o6-sghPXtmHnIhwTJUCIQ'),
+        ('Martha Speaks', 'http://t1.gstatic.com/images?q=tbn:ANd9GcSwrQm2lCbnV606Nbt7xXzBBr9HMBjOnfUbFhhzUFDcwS1or_KvlA'),
         ('Mister Rogers\' Neighborhood', 'http://t2.gstatic.com/images?q=tbn:ANd9GcTA0VaXsO3CPZe5oOk3arBF2LGy-tkMJA-KUBvMYE62xzhT1xOT'),
         ('Music Time with SteveSongs', 'http://t3.gstatic.com/images?q=tbn:ANd9GcQwVtrBXy-dd4WNFQ-7ecT1oCFZtGnB4wLBKa0sm3BBERwjGaW8Rw'),
         ('Sesame Street', 'http://t1.gstatic.com/images?q=tbn:ANd9GcRpZ01x49DLroVefKunsZq-BQndEsmqIZ2uF5NpsH7x1Qppza-n'),
@@ -32,25 +32,25 @@ class PBSKids(object):
         ('The Cat in the Hat', 'http://t2.gstatic.com/images?q=tbn:ANd9GcRbQob8R63vpLxmj9-SZ2jMSeDAVcgDOZLwIzKuGmhxcLIvWn3w'),
         ('WordWorld', 'http://t2.gstatic.com/images?q=tbn:ANd9GcQzAKKTUrU3HsStbgMQ7tGCJQjlCW9-kUbjQOmuiQbZr6qH9bKsUQ'),
     ]
-    
+
     PER_PAGE = 10
     VIDEOS_BASE = 'http://pbs.feeds.theplatform.com/ps/JSON/PortalService/2.2/getReleaseList?PID=6HSLquMebdOkNaEygDWyPOIbkPAnQ0_C&startIndex=%s&endIndex=%s&query=Categories|%s&sortField=airdate&sortDescending=true&field=title&field=categories&field=airdate&field=expirationDate&field=length&field=description&field=language&field=thumbnailURL&field=URL&field=PID&contentCustomField=IsClip'
-    
+
     def __init__(self):
         pass
-        
+
     def get_shows(self):
         return self.shows
-    
+
     def get_episodes(self, show, page):
         start = (page * self.PER_PAGE) + 1
         end = ((page + 1) * self.PER_PAGE)
         url = self.VIDEOS_BASE % (start, end, urllib.quote(show))
         videos = json.loads(urllib.urlopen(url).read())
-        
+
         eps = []
         for i in videos['items']:
-            eps.append(i) 
+            eps.append(i)
         return eps, videos['listInfo']['totalCount']
 
     def _get_ext(self, show):
@@ -65,7 +65,7 @@ class PBSKids(object):
         # based on how it's looking right now
         opener = urllib2.build_opener(PBSRedirectHandler)
         urllib2.install_opener(opener)
-        
+
         try:
             response = urllib2.urlopen(start_url)
         except Exception, e:
@@ -85,28 +85,28 @@ PARAMS = sys.argv[2]
 class Main:
     def __init__(self, pbs):
         self.pbs = pbs
-        
+
         if 'action=vids' in PARAMS:
             self.videos_menu()
         elif 'action=play' in PARAMS:
             self.play_vid()
         else:
             self.shows_menu()
-        
+
     def shows_menu(self):
         """ Main show menu
         """
         shows = pbs.get_shows()
         for show, thumbnail in shows:
-            item = xbmcgui.ListItem(label=show, thumbnailImage=thumbnail)  
+            item = xbmcgui.ListItem(label=show, thumbnailImage=thumbnail)
             url = '%s?action=vids&show=%s' % (PLUGIN, show)
             xbmcplugin.addDirectoryItem(handle=HANDLE, url=url, listitem=item, isFolder=True, totalItems=len(shows))
         # Sort by show name (is this necessary?)
         xbmcplugin.addSortMethod(handle=HANDLE, sortMethod=xbmcplugin.SORT_METHOD_TITLE)
-        
+
         # End the directory
         xbmcplugin.endOfDirectory(handle=HANDLE, succeeded=True)
-        
+
     def videos_menu(self):
         params = self._get_params_dict()
         show = params['show']
@@ -114,16 +114,16 @@ class Main:
             page = int(params['page'])
         except:
             page = 0
-        
+
         episodes, total = self.pbs.get_episodes(show, page)
         for ep in episodes:
             label = ep['title']
             if ep['contentCustomData'][0]['value'] == 'false':
                 label += ' (Full Episode)'
-                
+
             item = xbmcgui.ListItem(
-                label=label, 
-                iconImage='DefaultFolder.png', 
+                label=label,
+                iconImage='DefaultFolder.png',
                 thumbnailImage=ep['thumbnailURL']
             )
             item.setInfo('video', {'plot': ep['description']})
@@ -133,12 +133,12 @@ class Main:
                 'vid_url': urllib.quote(url),
                 'show': urllib.quote(show),
                 'title': urllib.quote(ep['title']),
-            }            
+            }
             xbmcplugin.addDirectoryItem(
-                handle=HANDLE, 
-                url='%s%s' % (PLUGIN, self._params_to_string(params)), 
-                listitem=item, 
-                isFolder=False, 
+                handle=HANDLE,
+                url='%s%s' % (PLUGIN, self._params_to_string(params)),
+                listitem=item,
+                isFolder=False,
                 totalItems=len(episodes)
             )
 
@@ -148,28 +148,28 @@ class Main:
             params['page'] = page + 1
             item = xbmcgui.ListItem(label='More...')
             xbmcplugin.addDirectoryItem(
-                handle=HANDLE, 
-                url='%s%s' % (PLUGIN, self._params_to_string(params)), 
-                listitem=item, 
+                handle=HANDLE,
+                url='%s%s' % (PLUGIN, self._params_to_string(params)),
+                listitem=item,
                 isFolder=True
             )
-        
+
         # End the directory
         xbmcplugin.endOfDirectory(handle=HANDLE, succeeded=True)
 
     def play_vid(self):
-        params = self._get_params_dict()        
+        params = self._get_params_dict()
         vid_url = urllib.unquote(params['vid_url'])
         show = urllib.unquote(params['show'])
         title = urllib.unquote(params['title'])
-        
+
         real_url = self.pbs.get_video_url(vid_url)
-    
+
         # Set video info
         listitem = xbmcgui.ListItem(show)
         listitem.setInfo('video', {'Title': title, 'Genre': 'Kids'})
-    
-        xbmc.Player( xbmc.PLAYER_CORE_MPLAYER ).play(real_url, listitem)    
+
+        xbmc.Player( xbmc.PLAYER_CORE_MPLAYER ).play(real_url, listitem)
 
     def _get_params_dict(self):
         return dict([part.split('=') for part in PARAMS[1:].split('&')])
@@ -180,6 +180,3 @@ class Main:
 if __name__ == "__main__":
     pbs = PBSKids()
     Main(pbs)
-    
-
-    
