@@ -8,3 +8,13 @@ Version 1.0.2
 25-Nov-2011
     * Core
         * Add new show - "Hooper"
+        
+Version 1.1.0
+09-May-2012
+	* Core
+		* Removed icon transparency
+		* Add duration to list items
+		* Fixed urllib problem with Unicode chars
+		* Corrected links that were not redirects - parse XML return
+		* Added higher resolution thumbnail ref
+		* Fixed More... menu logic
