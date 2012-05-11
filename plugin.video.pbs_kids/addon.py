@@ -1,6 +1,8 @@
 import urllib, re, sys
 import urllib2
+import math
 from os.path import basename
+from xml.dom.minidom import parseString
 import simplejson as json
 
 # XMBC libs
@@ -34,8 +36,8 @@ class PBSKids(object):
     ]
 
     PER_PAGE = 10
-    VIDEOS_BASE = 'http://pbs.feeds.theplatform.com/ps/JSON/PortalService/2.2/getReleaseList?PID=6HSLquMebdOkNaEygDWyPOIbkPAnQ0_C&startIndex=%s&endIndex=%s&query=Categories|%s&sortField=airdate&sortDescending=true&field=title&field=categories&field=airdate&field=expirationDate&field=length&field=description&field=language&field=thumbnailURL&field=URL&field=PID&contentCustomField=IsClip'
-
+    VIDEOS_BASE = 'http://pbs.feeds.theplatform.com/ps/JSON/PortalService/2.2/getReleaseList?PID=6HSLquMebdOkNaEygDWyPOIbkPAnQ0_C&startIndex=%s&endIndex=%s&query=Categories|%s&sortField=airdate&sortDescending=true&field=title&field=categories&field=airdate&field=expirationDate&field=length&field=description&field=language&field=length&field=assets&field=thumbnailURL&field=URL&field=PID&contentCustomField=IsClip'
+    
     def __init__(self):
         pass
 
@@ -67,9 +69,20 @@ class PBSKids(object):
         urllib2.install_opener(opener)
 
         try:
+            # some refs are a redirect to the correct video url and
+            # some refs return xml info about correct video url
             response = urllib2.urlopen(start_url)
+            # only reach this point if no redirect
+            data = response.read()
+            response.close()
+            dom = parseString(data)
+            xmlnode = dom.getElementsByTagName('url')[0]
+            return xmlnode.firstChild.nodeValue.replace('<break>', '')
         except Exception, e:
             return str(e).replace('<break>', '') # This is an odd way of doing this...
+        
+    def get_per_page(self):
+        return self.PER_PAGE 
 
 __addon__ = xbmcaddon.Addon(id='plugin.video.pbs_kids')
 __info__ = __addon__.getAddonInfo
@@ -118,21 +131,28 @@ class Main:
         episodes, total = self.pbs.get_episodes(show, page)
         for ep in episodes:
             label = ep['title']
+            
+            # use higher res thumbnail if available
+            thumbnailref = ep['thumbnailURL']
+            for asset in ep['assets']:
+                if asset['encodingProfile'] == 'GoogleThumbnail':
+                    thumbnailref= asset['URL'] 
+                    
             if ep['contentCustomData'][0]['value'] == 'false':
                 label += ' (Full Episode)'
 
             item = xbmcgui.ListItem(
                 label=label,
                 iconImage='DefaultFolder.png',
-                thumbnailImage=ep['thumbnailURL']
+                thumbnailImage=thumbnailref
             )
-            item.setInfo('video', {'plot': ep['description']})
+            item.setInfo('video', {'plot': ep['description'], "duration": self._build_length_string(ep['length'])})
             url = ep['URL']
             params = {
                 'action': 'play',
                 'vid_url': urllib.quote(url),
                 'show': urllib.quote(show),
-                'title': urllib.quote(ep['title']),
+                'title': urllib.quote(ep['title'].encode('utf-8','ignore'))
             }
             xbmcplugin.addDirectoryItem(
                 handle=HANDLE,
@@ -143,7 +163,7 @@ class Main:
             )
 
         # Add 'more' button if needed
-        if (page + 1) * len(episodes) < total:
+        if (page + 1) * self.pbs.get_per_page() < total:
             params = self._get_params_dict()
             params['page'] = page + 1
             item = xbmcgui.ListItem(label='More...')
@@ -176,6 +196,14 @@ class Main:
 
     def _params_to_string(self, params):
         return '?%s' % ('&'.join(['%s=%s' % (k,v) for k,v in params.items()]))
+    
+    def _build_length_string(self, lenval):
+        minpart = int(math.floor(lenval / 60000))
+        secpart = str(int(((lenval - (minpart * 60000)) / 1000)))
+        if len(secpart) == 1:
+            secpart = '0' + secpart
+                
+        return str(minpart) + ':' + secpart
 
 if __name__ == "__main__":
     pbs = PBSKids()
