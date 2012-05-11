@@ -2,7 +2,7 @@
 <addons>
 <addon
   id="plugin.video.pbs_kids"
-  version="1.0.2"
+  version="1.1"
   name="PBS Kids"
   provider-name="squidiums">
   <requires>
