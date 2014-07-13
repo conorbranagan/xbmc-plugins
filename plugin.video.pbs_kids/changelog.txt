@@ -18,3 +18,11 @@ Version 1.1.0
 		* Corrected links that were not redirects - parse XML return
 		* Added higher resolution thumbnail ref
 		* Fixed More... menu logic
+
+Version 1.2.0
+13-Jul-2014
+	* Core
+		* Updated to support new API used by PBS Kids
+		* Show list is now dynamically generated instead of hardcoded
+		* Updated to support latest XMBC Gotham
+		* Updated/refactored plugin code to be clearer and cleaner
