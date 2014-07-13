@@ -1,8 +1,11 @@
-import urllib, re, sys
-import urllib2
+# stdlib
+from collections import namedtuple
 import math
-from os.path import basename
+import urllib, sys
+import urllib2
 from xml.dom.minidom import parseString
+
+# 3p
 import simplejson as json
 
 # XMBC libs
@@ -14,46 +17,102 @@ class PBSRedirectHandler(urllib2.HTTPRedirectHandler):
 
     http_error_301 = http_error_303 = http_error_307 = http_error_302
 
-class PBSKids(object):
-    shows = [
-        ('Angelina Ballerina', 'http://t1.gstatic.com/images?q=tbn:ANd9GcRauKYR1woxi25U7nrir2AN-YAwFrWcz5nsx-MaAS_aCw05xX5BCA'),
-        ('Arthur', 'http://t2.gstatic.com/images?q=tbn:ANd9GcQJvPZKKJRWBRLhkyZJ7sXKV-jHUv9XkieAIQl_9p38ca-bSvoA'),
-        ('Between the Lions', 'http://t1.gstatic.com/images?q=tbn:ANd9GcQ_wUeItEx09KPu_cHUfsQZc_X-XRGEEmksf-WG_GZ2BPAJSe-g9Q'),
-        ('Clifford the Big Red Dog', 'http://t1.gstatic.com/images?q=tbn:ANd9GcTdLVRdpxTD666-q4wEWIQj8DXGXOHInHKt-S2S8mZ8jE6nrp9l'),
-        ('Curious George', 'http://t1.gstatic.com/images?q=tbn:ANd9GcQkW4nd6_VCrFNO712FFWWLBNRsAGMsNi1ye39N6SSm87mzYXD2SA'),
-        ('Dinosaur Train', 'http://t1.gstatic.com/images?q=tbn:ANd9GcSSy-zPxW3kv492RzBHkyoDKnbj_m2t6AAI8QtTMNULe8i5XMzt'),
-        ('Hooper', 'http://t3.gstatic.com/images?q=tbn:ANd9GcSBMEB-a-xkVxJPxB6YtJSf3B3gFj_tr0ws-Tm4hXpyLctwzUO6LA'),
-        ('Lomax the Hound of Music', 'http://t0.gstatic.com/images?q=tbn:ANd9GcRWoED5Z9Ole3ZQuGlNrhFHzVyDb-B-lauATmnq95B2j56HiS3g'),
-        ('Mama Mirabelle\'s Home Movies', 'http://t3.gstatic.com/images?q=tbn:ANd9GcT4VIlhiiqnBbMWsIRuH8LVPddPqes99o6-sghPXtmHnIhwTJUCIQ'),
-        ('Martha Speaks', 'http://t1.gstatic.com/images?q=tbn:ANd9GcSwrQm2lCbnV606Nbt7xXzBBr9HMBjOnfUbFhhzUFDcwS1or_KvlA'),
-        ('Mister Rogers\' Neighborhood', 'http://t2.gstatic.com/images?q=tbn:ANd9GcTA0VaXsO3CPZe5oOk3arBF2LGy-tkMJA-KUBvMYE62xzhT1xOT'),
-        ('Music Time with SteveSongs', 'http://t3.gstatic.com/images?q=tbn:ANd9GcQwVtrBXy-dd4WNFQ-7ecT1oCFZtGnB4wLBKa0sm3BBERwjGaW8Rw'),
-        ('Sesame Street', 'http://t1.gstatic.com/images?q=tbn:ANd9GcRpZ01x49DLroVefKunsZq-BQndEsmqIZ2uF5NpsH7x1Qppza-n'),
-        ('Sid The Science Kid', 'http://t3.gstatic.com/images?q=tbn:ANd9GcToL4xx-kAaBf0az48kA2MAWVvgBoNQJfpBWtN4Kt8J_xfhx95LFQ'),
-        ('Super Why', 'http://t3.gstatic.com/images?q=tbn:ANd9GcTPbtuOPgQey4mshrFZifIP3FS1yq4_bqlcKC6AzFsrgN_K5y5Gsw'),
-        ('The Cat in the Hat', 'http://t2.gstatic.com/images?q=tbn:ANd9GcRbQob8R63vpLxmj9-SZ2jMSeDAVcgDOZLwIzKuGmhxcLIvWn3w'),
-        ('WordWorld', 'http://t2.gstatic.com/images?q=tbn:ANd9GcQzAKKTUrU3HsStbgMQ7tGCJQjlCW9-kUbjQOmuiQbZr6qH9bKsUQ'),
-    ]
 
-    PER_PAGE = 10
-    VIDEOS_BASE = 'http://pbs.feeds.theplatform.com/ps/JSON/PortalService/2.2/getReleaseList?PID=6HSLquMebdOkNaEygDWyPOIbkPAnQ0_C&startIndex=%s&endIndex=%s&query=Categories|%s&sortField=airdate&sortDescending=true&field=title&field=categories&field=airdate&field=expirationDate&field=length&field=description&field=language&field=length&field=assets&field=thumbnailURL&field=URL&field=PID&contentCustomField=IsClip'
+Show = namedtuple('Show', ['title', 'plot', 'thumbnail'])
+Video = namedtuple('Video', ['title', 'plot', 'duration', 'thumbnail', 'url',
+                             'type'])
+
+class PBSKids(object):
+    # Shows constants
+    SHOWS_URL = 'http://pbskids.org/shell/video/data/org.pbskids.shows.json'
+    SHOW_THUMB_BASE = "http://www-tc.pbskids.org/shell/images/"\
+                      "content/show-bubbles/circle/%s"
+
+    # Videos constants
+    PER_PAGE = 25
+    VIDEOS_BASE = "http://pbskids.org/pbsk/video/api/getVideos/?"\
+                  "startindex={startindex}&endindex={endindex}"\
+                  "&program={program}&status=available&player=flash&flash=true"\
+                  "&return="
+
+    # Video bitrates sorted by preference.
+    BITRATES = [2500, 1200, 800, 400]
     
     def __init__(self):
         pass
 
     def get_shows(self):
-        return self.shows
+        response = json.loads(urllib.urlopen(self.SHOWS_URL).read())
+        return [Show(
+            title=show['title'],
+            plot=show['description'],
+            thumbnail=self.SHOW_THUMB_BASE % show['whiteCircle']
+        ) for show in response]
 
-    def get_episodes(self, show, page):
+
+    def get_videos(self, program, page):
+        """ Returns a tuple of ([Video, ...], more) where `more` is a boolean
+            signaling if there are more videos beyond this page.
+        """
         start = (page * self.PER_PAGE) + 1
         end = ((page + 1) * self.PER_PAGE)
-        url = self.VIDEOS_BASE % (start, end, urllib.quote(show))
-        videos = json.loads(urllib.urlopen(url).read())
+        url = self.VIDEOS_BASE.format(
+                startindex=start,
+                endindex=end,
+                program=program)
+        response = json.loads(urllib.urlopen(url).read())
 
-        eps = []
-        for i in videos['items']:
-            eps.append(i)
-        return eps, videos['listInfo']['totalCount']
+        videos = []
+        for item in response.get('items', []):
+            if 'title' not in item:
+                continue
+            title = item['title']
+            plot = item['description']
+            video_type = item['type']
+            flv_videos = item['videos']['flash']
+            duration = self._get_length_string(flv_videos['length'])
+
+            # Pick the "best" flv video we can get.
+            # FIXME: Maybe we could do smart streaming eventually?
+            url = None
+            for br in self.BITRATES:
+                key = 'mp4-%sk' % br
+                if key in flv_videos:
+                    url = flv_videos[key]['url']
+                    break
+            # Old-style URL
+            if 'url' in flv_videos:
+                url = flv_videos['url']
+
+            if not url:
+                # Skip any videos matching none of our bit rates.
+                print(item)
+                continue
+
+            # Pick the "best" thumbnail we can (or None)
+            images = item['images']
+            if 'originalres_16x9' in images:
+                thumbnail = images['originalres_16x9']['url']
+            elif 'originalres_4x3' in images:
+                thumbnail = images['originalres_4x3']['url']
+            elif 'googlethumbnail' in images:
+                thumbnail = images['googlethumbnail']['url']
+            else:
+                thumbnail = None
+
+            videos.append(Video(
+                title=title,
+                plot=plot,
+                duration=duration,
+                thumbnail=thumbnail,
+                url=url,
+                type=video_type
+            ))
+
+        # Decide if there are more episodes to paginate through.
+        more = end < response['matched']
+
+        return videos, more
 
     def _get_ext(self, show):
         if show in self.all_flv:
@@ -79,10 +138,19 @@ class PBSKids(object):
             xmlnode = dom.getElementsByTagName('url')[0]
             return xmlnode.firstChild.nodeValue.replace('<break>', '')
         except Exception, e:
-            return str(e).replace('<break>', '') # This is an odd way of doing this...
+            # This is an odd way of doing this...
+            return str(e).replace('<break>', '')
         
     def get_per_page(self):
         return self.PER_PAGE 
+
+    def _get_length_string(self, lenval):
+        minpart = int(math.floor(lenval / 60000))
+        secpart = str(int(((lenval - (minpart * 60000)) / 1000)))
+        if len(secpart) == 1:
+            secpart = '0' + secpart
+        return str(minpart) + ':' + secpart
+
 
 __addon__ = xbmcaddon.Addon(id='plugin.video.pbs_kids')
 __info__ = __addon__.getAddonInfo
@@ -95,7 +163,7 @@ PLUGIN = sys.argv[0]
 HANDLE = int(sys.argv[1])
 PARAMS = sys.argv[2]
 
-class Main:
+class Main(object):
     def __init__(self, pbs):
         self.pbs = pbs
 
@@ -110,12 +178,15 @@ class Main:
         """ Main show menu
         """
         shows = pbs.get_shows()
-        for show, thumbnail in shows:
-            item = xbmcgui.ListItem(label=show, thumbnailImage=thumbnail)
-            url = '%s?action=vids&show=%s' % (PLUGIN, show)
-            xbmcplugin.addDirectoryItem(handle=HANDLE, url=url, listitem=item, isFolder=True, totalItems=len(shows))
+        for show in shows:
+            item = xbmcgui.ListItem(label=show.title,
+                                    thumbnailImage=show.thumbnail)
+            url = '%s?action=vids&show=%s' % (PLUGIN, urllib.quote(show.title))
+            xbmcplugin.addDirectoryItem(handle=HANDLE, url=url, listitem=item,
+                                        isFolder=True, totalItems=len(shows))
         # Sort by show name (is this necessary?)
-        xbmcplugin.addSortMethod(handle=HANDLE, sortMethod=xbmcplugin.SORT_METHOD_TITLE)
+        xbmcplugin.addSortMethod(handle=HANDLE,
+            sortMethod=xbmcplugin.SORT_METHOD_TITLE)
 
         # End the directory
         xbmcplugin.endOfDirectory(handle=HANDLE, succeeded=True)
@@ -128,42 +199,42 @@ class Main:
         except:
             page = 0
 
-        episodes, total = self.pbs.get_episodes(show, page)
-        for ep in episodes:
-            label = ep['title']
-            
-            # use higher res thumbnail if available
-            thumbnailref = ep['thumbnailURL']
-            for asset in ep['assets']:
-                if asset['encodingProfile'] == 'GoogleThumbnail':
-                    thumbnailref= asset['URL'] 
-                    
-            if ep['contentCustomData'][0]['value'] == 'false':
+        videos, more = self.pbs.get_videos(show, page)
+        for video in videos:
+            label = video.title
+            if video.type == 'Episode':
                 label += ' (Full Episode)'
+            elif video.type == 'Clip':
+                label += ' (Clip)'
 
+            # Add episode items to menu
             item = xbmcgui.ListItem(
                 label=label,
                 iconImage='DefaultFolder.png',
-                thumbnailImage=thumbnailref
+                thumbnailImage=video.thumbnail or ''
             )
-            item.setInfo('video', {'plot': ep['description'], "duration": self._build_length_string(ep['length'])})
-            url = ep['URL']
+            item.setInfo('video', {
+                'plot': video.plot,
+                'duration': video.duration
+            })
+
+            # Set directory URL for xbmc
             params = {
                 'action': 'play',
-                'vid_url': urllib.quote(url),
+                'vid_url': urllib.quote(video.url),
                 'show': urllib.quote(show),
-                'title': urllib.quote(ep['title'].encode('utf-8','ignore'))
+                'title': urllib.quote(video.title.encode('utf-8','ignore'))
             }
             xbmcplugin.addDirectoryItem(
                 handle=HANDLE,
                 url='%s%s' % (PLUGIN, self._params_to_string(params)),
                 listitem=item,
                 isFolder=False,
-                totalItems=len(episodes)
+                totalItems=len(video)
             )
 
         # Add 'more' button if needed
-        if (page + 1) * self.pbs.get_per_page() < total:
+        if more:
             params = self._get_params_dict()
             params['page'] = page + 1
             item = xbmcgui.ListItem(label='More...')
@@ -189,21 +260,14 @@ class Main:
         listitem = xbmcgui.ListItem(show)
         listitem.setInfo('video', {'Title': title, 'Genre': 'Kids'})
 
-        xbmc.Player( xbmc.PLAYER_CORE_MPLAYER ).play(real_url, listitem)
+        xbmc.Player(xbmc.PLAYER_CORE_MPLAYER).play(real_url, listitem)
 
     def _get_params_dict(self):
         return dict([part.split('=') for part in PARAMS[1:].split('&')])
 
     def _params_to_string(self, params):
         return '?%s' % ('&'.join(['%s=%s' % (k,v) for k,v in params.items()]))
-    
-    def _build_length_string(self, lenval):
-        minpart = int(math.floor(lenval / 60000))
-        secpart = str(int(((lenval - (minpart * 60000)) / 1000)))
-        if len(secpart) == 1:
-            secpart = '0' + secpart
-                
-        return str(minpart) + ':' + secpart
+
 
 if __name__ == "__main__":
     pbs = PBSKids()
